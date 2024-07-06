@@ -120,7 +120,7 @@ class WorkUaScraper:
                 if "Місто проживання" in dt.get_text():
                     location = dt.find_next_sibling("dd").get_text(strip=True)
                 elif "Вік" in dt.get_text():
-                    age = dt.find_next_sibling("dd").get_text(strip=True)
+                    age = dt.find_next_sibling("dd").get_text(strip=True).replace('\xa0', ' ')
                 elif "Готовий працювати" in dt.get_text():
                     willingness_to_work = dt.find_next_sibling("dd").get_text(strip=True)
 
@@ -174,6 +174,6 @@ if __name__ == "__main__":
 # Job position (e.g., Data Scientist, Web Developer, etc.) +++++
 # Years of experience
 # Skills or keywords
-# Location    //*[@id="resume_8256382"]/div[1]/div/div/dl/dt[3]
+# Location    +++++
 # Salary expectation   +++++++
-# Your criterias
+# Your criterias ++++
