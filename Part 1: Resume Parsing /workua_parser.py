@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-
+import re
 
 class WorkUaScraper:
     def __init__(self, base_url, start_page=1, end_page=10):
@@ -38,6 +38,50 @@ class WorkUaScraper:
         links = [urljoin(url, tag['href']) for tag in soup.select('.card h2 a, .card h5 a')]
         return links
 
+    def extract_numbers(self, text):
+        """
+        Извлечение чисел из текста.
+
+        Аргументы:
+        text (str): Входной текст.
+
+        Возвращает:
+        str: Строка, содержащая только числа.
+        """
+        numbers = re.findall(r'\d+', text)
+        return ' '.join(numbers) if numbers else "Not specified"
+
+    def extract_position_and_salary(self, tag):
+        """
+        Извлечение позиции и зарплаты из тега.
+
+        Аргументы:
+        tag (bs4.element.Tag): Тег, содержащий позицию и зарплату.
+
+        Возвращает:
+        tuple: Позиция и зарплата.
+        """
+        if tag:
+            full_text = tag.get_text(separator=" ", strip=True)
+            salary_tag = tag.find("span", class_="text-muted-print")
+            if salary_tag:
+                salary_text = salary_tag.get_text(strip=True)
+                position = full_text.replace(salary_text, "").strip()
+                salary = self.extract_numbers(salary_text)
+            else:
+                # Если нет отдельного <span>, ищем зарплату в тексте
+                match = re.search(r'(\d[\d\s]*)\s*грн', full_text)
+                if match:
+                    salary = match.group(1).replace('\xa0', ' ')
+                    position = full_text.replace(salary, "").replace('грн', "").strip()
+                else:
+                    position = full_text
+                    salary = "Not specified"
+        else:
+            position = "Not specified"
+            salary = "Not specified"
+        return position, salary
+
     def scrape_resume_data(self, resume_url):
         """
         Сбор данных с конкретного резюме.
@@ -62,16 +106,10 @@ class WorkUaScraper:
 
         # Формируем CSS-селекторы
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
-        salary_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2 > span'
 
-        # Извлекаем данные о позиции
+        # Извлекаем данные о позиции и зарплате
         job_position_tag = soup.select_one(position_selector)
-        job_position = job_position_tag.text.strip() if job_position_tag else "Not specified"
-
-
-        # Извлекаем данные о зарплате, если указано
-        salary_tag = soup.select_one(salary_selector)
-        salary_expectation = salary_tag.text.strip() if salary_tag else "Not specified"
+        job_position, salary_expectation = self.extract_position_and_salary(job_position_tag)
 
         resume_data = {
             'job_position': job_position,
@@ -117,8 +155,6 @@ if __name__ == "__main__":
     # Вывод результатов
     for data in resume_data:
         print(data)
-
-
 
 # //*[@id="resume_10215053"]/div[1]/div/div/h2
 # //*[@id="resume_8256382"]/div[1]/div/div/h2/span
