@@ -106,6 +106,7 @@ class WorkUaScraper:
         # Формируем CSS-селекторы
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
         dl_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > dl'
+        skill_selector = f'li.no-style.mr-sm.mt-sm'  # CSS-селектор для элемента с классом "no-style mr-sm mt-sm"
 
         # Извлекаем данные о позиции и зарплате
         job_position_tag = soup.select_one(position_selector)
@@ -124,12 +125,20 @@ class WorkUaScraper:
                 elif "Готовий працювати" in dt.get_text():
                     willingness_to_work = dt.find_next_sibling("dd").get_text(strip=True)
 
+        # Извлекаем текст из элемента с классом "no-style mr-sm mt-sm"
+        skill_text = ""
+        skill_tag = soup.select_one(skill_selector)
+        if skill_tag:
+            skill_text = skill_tag.get_text(strip=True)
+
+        # Добавляем скилы в данные резюме
         resume_data = {
             'job_position': job_position,
             'salary_expectation': salary_expectation,
             'location': location,
             'age': age,
-            'willingness_to_work': willingness_to_work
+            'willingness_to_work': willingness_to_work,
+            'skills_text': skill_text  # текст из элемента с классом "no-style mr-sm mt-sm"
         }
 
         return resume_data
