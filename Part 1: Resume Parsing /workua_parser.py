@@ -82,9 +82,25 @@ class WorkUaScraper:
             salary = "Not specified"
         return position, salary
 
+    def extract_experience(self, text):
+        """
+        Извлечение опыта работы из текста.
+
+        Аргументы:
+        text (str): Текст с опытом работы.
+
+        Возвращает:
+        str: Строка с опытом работы.
+        """
+        experience = "Not specified"
+        match = re.search(r'\((.*?)\)', text)
+        if match:
+            experience = match.group(1).replace('\xa0', ' ')
+        return experience
+
     def scrape_resume_data(self, resume_url):
         """
-        Сбор данных с конкретного резюме.
+        Сбор данных с конкретного резюме, включая опыт работы.
 
         Аргументы:
         resume_url (str): URL резюме.
@@ -109,15 +125,15 @@ class WorkUaScraper:
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
         dl_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > dl'
         skill_selector = f'li.no-style.mr-sm.mt-sm'  # CSS-селектор для элемента с классом "no-style mr-sm mt-sm"
+        experience_selector = f'#resume_{resume_id} > p:nth-of-type(3) > span:nth-of-type(1)'  # XPath для опыта работы
 
         # Извлекаем данные о позиции и зарплате
         job_position_tag = soup.select_one(position_selector)
         job_position, salary_expectation = self.extract_position_and_salary(job_position_tag)
 
-        # Извлекаем имя из
+        # Извлекаем имя
         name_tag = soup.select_one(name_selector)
         name = name_tag.get_text(strip=True) if name_tag else "Not specified"
-
 
         # Извлекаем данные из dl-тега
         dl_tag = soup.select_one(dl_selector)
@@ -138,6 +154,10 @@ class WorkUaScraper:
         for tag in skill_tags:
             skill_texts.append(tag.get_text(strip=True))
 
+        # Извлекаем опыт работы
+        experience_tag = soup.select_one(experience_selector)
+        experience = self.extract_experience(experience_tag.get_text(strip=True)) if experience_tag else "Not specified"
+
         # Добавляем скилы в данные резюме
         resume_data = {
             'name': name,
@@ -147,7 +167,8 @@ class WorkUaScraper:
             'location': location,
             'age': age,
             'willingness_to_work': willingness_to_work,
-            'skills_texts': skill_texts  # список текстов из элементов с классом "no-style mr-sm mt-sm"
+            'skills_texts': skill_texts,  # список текстов из элементов с классом "no-style mr-sm mt-sm"
+            'experience': experience  # опыт работы
         }
 
         return resume_data
@@ -202,3 +223,11 @@ if __name__ == "__main__":
     # Вывод результатов (опционально)
     for data in resume_data:
         print(data)
+
+
+
+# //*[@id="pjax-resume-list"]/div[7]/ul[2]/li/span
+# //*[@id="pjax-resume-list"]/div[14]/div[1]
+# #resume_2508018 > p:nth-child(9) > span:nth-child(1)
+# #resume_2508018 > p:nth-child(12) > span:nth-child(1)
+# <span class="text-default-7">(11&nbsp;років&nbsp;2&nbsp;місяці)</span>
