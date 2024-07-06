@@ -69,7 +69,6 @@ class WorkUaScraper:
                 position = full_text.replace(salary_text, "").strip()
                 salary = self.extract_numbers(salary_text)
             else:
-                # Если нет отдельного <span>, ищем зарплату в тексте
                 match = re.search(r'(\d[\d\s]*)\s*грн', full_text)
                 if match:
                     salary = match.group(1).replace('\xa0', ' ')
@@ -106,15 +105,31 @@ class WorkUaScraper:
 
         # Формируем CSS-селекторы
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
+        dl_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > dl'
 
         # Извлекаем данные о позиции и зарплате
         job_position_tag = soup.select_one(position_selector)
         job_position, salary_expectation = self.extract_position_and_salary(job_position_tag)
 
+        # Извлекаем данные из dl-тега
+        dl_tag = soup.select_one(dl_selector)
+        location = age = willingness_to_work = "Not specified"
+        if dl_tag:
+            dt_tags = dl_tag.find_all("dt")
+            for dt in dt_tags:
+                if "Місто проживання" in dt.get_text():
+                    location = dt.find_next_sibling("dd").get_text(strip=True)
+                elif "Вік" in dt.get_text():
+                    age = dt.find_next_sibling("dd").get_text(strip=True)
+                elif "Готовий працювати" in dt.get_text():
+                    willingness_to_work = dt.find_next_sibling("dd").get_text(strip=True)
+
         resume_data = {
             'job_position': job_position,
             'salary_expectation': salary_expectation,
-            # Другие данные, которые могут быть нужны
+            'location': location,
+            'age': age,
+            'willingness_to_work': willingness_to_work
         }
 
         return resume_data
@@ -156,15 +171,9 @@ if __name__ == "__main__":
     for data in resume_data:
         print(data)
 
-# //*[@id="resume_10215053"]/div[1]/div/div/h2
-# //*[@id="resume_8256382"]/div[1]/div/div/h2/span
-
-
-# //*[@id="resume_8256382"]/div[1]/div/div/h2
-
-# Job position (e.g., Data Scientist, Web Developer, etc.)
+# Job position (e.g., Data Scientist, Web Developer, etc.) +++++
 # Years of experience
 # Skills or keywords
-# Location
-# Salary expectation
+# Location    //*[@id="resume_8256382"]/div[1]/div/div/dl/dt[3]
+# Salary expectation   +++++++
 # Your criterias
