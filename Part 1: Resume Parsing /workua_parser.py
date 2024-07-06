@@ -1,3 +1,4 @@
+import json
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -104,6 +105,7 @@ class WorkUaScraper:
         resume_id = resume_url.replace("https://www.work.ua/resumes/", "").replace("/", "")
 
         # Формируем CSS-селекторы
+        name_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h1'
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
         dl_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > dl'
         skill_selector = f'li.no-style.mr-sm.mt-sm'  # CSS-селектор для элемента с классом "no-style mr-sm mt-sm"
@@ -111,6 +113,11 @@ class WorkUaScraper:
         # Извлекаем данные о позиции и зарплате
         job_position_tag = soup.select_one(position_selector)
         job_position, salary_expectation = self.extract_position_and_salary(job_position_tag)
+
+        # Извлекаем имя из
+        name_tag = soup.select_one(name_selector)
+        name = name_tag.get_text(strip=True) if name_tag else "Not specified"
+
 
         # Извлекаем данные из dl-тега
         dl_tag = soup.select_one(dl_selector)
@@ -133,6 +140,8 @@ class WorkUaScraper:
 
         # Добавляем скилы в данные резюме
         resume_data = {
+            'name': name,
+            'url': resume_url,
             'job_position': job_position,
             'salary_expectation': salary_expectation,
             'location': location,
@@ -164,8 +173,19 @@ class WorkUaScraper:
 
         return all_resume_data
 
+    def save_to_json(self, data, filename="resume_data.json"):
+        """
+        Save scraped resume data to a JSON file.
 
-# Пример использования
+        Arguments:
+        data (list): List of dictionaries containing resume data.
+        filename (str): Name of the JSON file to save to. Default is 'resume_data.json'.
+        """
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+# Example usage
 if __name__ == "__main__":
     # Укажите базовый URL и диапазон страниц для парсинга
     base_url = "https://www.work.ua/resumes-web+developer/?page="
@@ -176,13 +196,9 @@ if __name__ == "__main__":
     scraper = WorkUaScraper(base_url, start_page, end_page)
     resume_data = scraper.scrape_all_resumes()
 
-    # Вывод результатов
+    # Сохранение данных в JSON файл
+    scraper.save_to_json(resume_data, filename="resume_data.json")
+
+    # Вывод результатов (опционально)
     for data in resume_data:
         print(data)
-
-# Job position (e.g., Data Scientist, Web Developer, etc.) +++++
-# Years of experience
-# Skills or keywords ++++
-# Location    +++++
-# Salary expectation   +++++++
-# Your criterias ++++
