@@ -125,11 +125,11 @@ class WorkUaScraper:
                 elif "Готовий працювати" in dt.get_text():
                     willingness_to_work = dt.find_next_sibling("dd").get_text(strip=True)
 
-        # Извлекаем текст из элемента с классом "no-style mr-sm mt-sm"
-        skill_text = ""
-        skill_tag = soup.select_one(skill_selector)
-        if skill_tag:
-            skill_text = skill_tag.get_text(strip=True)
+        # Извлекаем тексты из элементов с классом "no-style mr-sm mt-sm"
+        skill_texts = []
+        skill_tags = soup.select(skill_selector)
+        for tag in skill_tags:
+            skill_texts.append(tag.get_text(strip=True))
 
         # Добавляем скилы в данные резюме
         resume_data = {
@@ -138,7 +138,7 @@ class WorkUaScraper:
             'location': location,
             'age': age,
             'willingness_to_work': willingness_to_work,
-            'skills_text': skill_text  # текст из элемента с классом "no-style mr-sm mt-sm"
+            'skills_texts': skill_texts  # список текстов из элементов с классом "no-style mr-sm mt-sm"
         }
 
         return resume_data
@@ -182,7 +182,7 @@ if __name__ == "__main__":
 
 # Job position (e.g., Data Scientist, Web Developer, etc.) +++++
 # Years of experience
-# Skills or keywords
+# Skills or keywords ++++
 # Location    +++++
 # Salary expectation   +++++++
 # Your criterias ++++
