@@ -125,6 +125,7 @@ class WorkUaScraper:
         position_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > h2'
         dl_selector = f'#resume_{resume_id} > div:nth-of-type(1) > div > div > dl'
         skill_selector = f'li.no-style.mr-sm.mt-sm'  # CSS-селектор для элемента с классом "no-style mr-sm mt-sm"
+        experience_section_selector = f'#resume_{resume_id} > h2:nth-of-type(2)'  # XPath для заголовка "Досвід роботи"
         experience_selector = f'#resume_{resume_id} > p:nth-of-type(3) > span:nth-of-type(1)'  # XPath для опыта работы
 
         # Извлекаем данные о позиции и зарплате
@@ -154,9 +155,14 @@ class WorkUaScraper:
         for tag in skill_tags:
             skill_texts.append(tag.get_text(strip=True))
 
-        # Извлекаем опыт работы
-        experience_tag = soup.select_one(experience_selector)
-        experience = self.extract_experience(experience_tag.get_text(strip=True)) if experience_tag else "Not specified"
+        # Проверяем наличие "Досвід роботи" перед извлечением опыта работы
+        experience_section_tag = soup.select_one(experience_section_selector)
+        if experience_section_tag and "Досвід роботи" in experience_section_tag.get_text(strip=True):
+            experience_tag = soup.select_one(experience_selector)
+            experience = self.extract_experience(
+                experience_tag.get_text(strip=True)) if experience_tag else "Not specified"
+        else:
+            experience = "Not specified"
 
         # Добавляем скилы в данные резюме
         resume_data = {
