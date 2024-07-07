@@ -58,8 +58,8 @@ def send_request(url, payload, headers, retries=3):
     return None
 
 
-# Список для хранения всех данных
-all_data = []
+# Список для хранения всех текстов ответов
+all_responses = []
 
 # Цикл для пагинации
 while True:
@@ -68,8 +68,8 @@ while True:
     if json_data:
         print(f"Страница {payload['page']} обработана.")
 
-        # Добавление данных о людях в общий список
-        all_data.extend(json_data.get('documents', []))
+        # Добавляем данные о людях в список
+        all_responses.extend(json_data.get('documents', []))
 
         # Проверка количества документов
         if len(json_data.get('documents', [])) < payload['requestedCount']:
@@ -86,7 +86,12 @@ while True:
         break
 
 # Сохранение всех данных в JSON-файл
-with open('resumes.json', 'w', encoding='utf-8') as f:
-    json.dump(all_data, f, ensure_ascii=False, indent=4)
+with open('resumes.json', 'w', encoding='utf-8') as jsonfile:
+    json.dump(all_responses, jsonfile, ensure_ascii=False, indent=4)
 
 print("Данные сохранены в файл resumes.json.")
+
+
+# https://employer-api.robota.ua/resume/23642926?markView=true
+# GET
+# markView: true
