@@ -1,4 +1,5 @@
-import requests
+import aiohttp
+import asyncio
 import time
 import json
 import re
@@ -48,86 +49,87 @@ headers = {
 }
 
 # Функция для обработки POST-запроса с возможностью повтора
-def send_request(url, payload, headers, retries=3):
+async def send_request(session, url, payload, headers, retries=3):
     for attempt in range(retries):
-        response = requests.post(url, json=payload, headers=headers)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Попытка {attempt + 1} не удалась. Статус код: {response.status_code}")
-            time.sleep(2)
+        async with session.post(url, json=payload, headers=headers) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                print(f"Попытка {attempt + 1} не удалась. Статус код: {response.status}")
+                await asyncio.sleep(2)
     return None
 
 # Функция для отправки GET-запроса с использованием aiohttp
-def fetch_resume(resume_id):
+async def fetch_resume(session, resume_id):
     url = url_get_template.format(resume_id=resume_id)
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Ошибка при получении данных кандидата {resume_id}: {response.status_code}")
-        return None
+    async with session.get(url) as response:
+        if response.status == 200:
+            return await response.json()
+        else:
+            print(f"Ошибка при получении данных кандидата {resume_id}: {response.status}")
+            return None
 
 # Функция для получения всех резюме и отправки GET-запросов
-def get_and_process_resumes():
-    all_responses = []
+async def get_and_process_resumes():
+    async with aiohttp.ClientSession() as session:
+        all_responses = []
 
-    # Цикл для пагинации
-    while True:
-        json_data = send_request(url_post, payload, headers)
+        # Цикл для пагинации
+        while True:
+            json_data = await send_request(session, url_post, payload, headers)
 
-        if json_data:
-            print(f"Страница {payload['page']} обработана.")
+            if json_data:
+                print(f"Страница {payload['page']} обработана.")
 
-            # Добавляем данные о людях в список
-            all_responses.extend(json_data.get('documents', []))
+                # Добавляем данные о людях в список
+                all_responses.extend(json_data.get('documents', []))
 
-            # Проверка количества документов
-            if len(json_data.get('documents', [])) < payload['requestedCount']:
-                print("Достигнут конец данных.")
+                # Проверка количества документов
+                if len(json_data.get('documents', [])) < payload['requestedCount']:
+                    print("Достигнут конец данных.")
+                    break
+
+                # Увеличение номера страницы для следующего запроса
+                payload['page'] += 1
+
+                # Задержка между запросами
+                await asyncio.sleep(2)
+            else:
+                print(f"Ошибка при выполнении запроса на странице {payload['page']}")
                 break
 
-            # Увеличение номера страницы для следующего запроса
-            payload['page'] += 1
+        # Получение дополнительных данных о каждом кандидате
+        extracted_data = []
+        tasks = [fetch_resume(session, resume['resumeId']) for resume in all_responses]
+        results = await asyncio.gather(*tasks)
 
-            # Задержка между запросами
-            time.sleep(2)
-        else:
-            print(f"Ошибка при выполнении запроса на странице {payload['page']}")
-            break
+        for details in results:
+            if details:
+                # Очистка описания навыков от HTML тегов
+                cleaned_skills = []
+                for skill in details.get('skills', []):
+                    description = skill.get('description', '')
+                    clean_description = re.sub(r"<.*?>", "", description)  # Удаление всех HTML тегов
+                    cleaned_skills.append({"description": clean_description})
 
-    # Получение дополнительных данных о каждом кандидате
-    extracted_data = []
-    for resume in all_responses:
-        resume_id = resume['resumeId']
-        details = fetch_resume(resume_id)
-        if details:
-            # Очистка описания навыков от HTML тегов
-            cleaned_skills = []
-            for skill in details.get('skills', []):
-                description = skill.get('description', '')
-                clean_description = re.sub(r"<.*?>", "", description)  # Удаление всех HTML тегов
-                cleaned_skills.append({"description": clean_description})
+                # Добавление данных о кандидате в извлеченные данные
+                data = {
+                    'resume_id': details.get('resumeId', 'Not specified'),
+                    'name': details.get('name', 'Not specified'),
+                    'age': details.get('age', 'Not specified'),
+                    'speciality': details.get('speciality', 'Not specified'),
+                    'salaryFull': details.get('salaryFull', 'Not specified'),
+                    'skills': cleaned_skills,
+                    'experience': details.get('experiences', [])
+                }
+                extracted_data.append(data)
 
-            # Добавление данных о кандидате в извлеченные данные
-            data = {
-                'resume_id': resume_id,
-                'name': details.get('name', 'Not specified'),
-                'age': details.get('age', 'Not specified'),
-                'speciality': details.get('speciality', 'Not specified'),
-                'salaryFull': details.get('salaryFull', 'Not specified'),
-                'skills': cleaned_skills,
-                'experience': details.get('experiences', [])
-            }
-            extracted_data.append(data)
-            # print(all_responses)
+        # Сохранение извлеченных данных в файл
+        with open('extracted_data.json', 'w', encoding='utf-8') as jsonfile:
+            json.dump(extracted_data, jsonfile, ensure_ascii=False, indent=4)
 
-    # Сохранение извлеченных данных в файл
-    with open('extracted_data.json', 'w', encoding='utf-8') as jsonfile:
-        json.dump(extracted_data, jsonfile, ensure_ascii=False, indent=4)
-
-    print("Извлеченные данные сохранены в файл extracted_data.json.")
+        print("Извлеченные данные сохранены в файл extracted_data.json.")
 
 # Запуск основной функции
 if __name__ == "__main__":
-    get_and_process_resumes()
+    asyncio.run(get_and_process_resumes())
