@@ -164,17 +164,18 @@ class WorkUaScraper:
         else:
             experience = "Not specified"
 
+        # Форматирование навыков в строку
+        skills = "• ".join(skill_texts)
+
         # Добавляем скилы в данные резюме
         resume_data = {
+            'resume_id': resume_id,
             'name': name,
-            'url': resume_url,
-            'job_position': job_position,
-            'salary_expectation': salary_expectation,
-            'location': location,
             'age': age,
-            'willingness_to_work': willingness_to_work,
-            'skills_texts': skill_texts,  # список текстов из элементов с классом "no-style mr-sm mt-sm"
-            'experience': experience  # опыт работы
+            'speciality': job_position,
+            'salaryFull': salary_expectation + " грн.",
+            'skills': [skills],
+            'experience': experience
         }
 
         return resume_data
@@ -202,17 +203,17 @@ class WorkUaScraper:
 
     def save_to_json(self, data, filename="resume_data.json"):
         """
-        Save scraped resume data to a JSON file.
+        Сохранение собранных данных резюме в JSON файл.
 
-        Arguments:
-        data (list): List of dictionaries containing resume data.
-        filename (str): Name of the JSON file to save to. Default is 'resume_data.json'.
+        Аргументы:
+        data (list): Список словарей с данными резюме.
+        filename (str): Название файла JSON для сохранения. По умолчанию 'resume_data.json'.
         """
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-# Example usage
+# Пример использования
 if __name__ == "__main__":
     # Укажите базовый URL и диапазон страниц для парсинга
     base_url = "https://www.work.ua/resumes-web+developer/?page="
@@ -229,11 +230,3 @@ if __name__ == "__main__":
     # Вывод результатов (опционально)
     for data in resume_data:
         print(data)
-
-
-
-# //*[@id="pjax-resume-list"]/div[7]/ul[2]/li/span
-# //*[@id="pjax-resume-list"]/div[14]/div[1]
-# #resume_2508018 > p:nth-child(9) > span:nth-child(1)
-# #resume_2508018 > p:nth-child(12) > span:nth-child(1)
-# <span class="text-default-7">(11&nbsp;років&nbsp;2&nbsp;місяці)</span>
