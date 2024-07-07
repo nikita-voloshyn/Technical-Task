@@ -149,7 +149,7 @@ async def get_and_process_resumes():
                 extracted_data.append(data)
 
         # Сохранение извлеченных данных в файл
-        with open('extracted_data.json', 'w', encoding='utf-8') as jsonfile:
+        with open('robotaua_data.json', 'w', encoding='utf-8') as jsonfile:
             json.dump(extracted_data, jsonfile, ensure_ascii=False, indent=4)
 
         print("Извлеченные данные сохранены в файл extracted_data.json.")

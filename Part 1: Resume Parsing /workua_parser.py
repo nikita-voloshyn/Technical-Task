@@ -201,7 +201,7 @@ class WorkUaScraper:
 
         return all_resume_data
 
-    def save_to_json(self, data, filename="resume_data.json"):
+    def save_to_json(self, data, filename="workua_data.json"):
         """
         Сохранение собранных данных резюме в JSON файл.
 
