@@ -1,6 +1,7 @@
 import requests
 import time
 import json
+import re
 
 # URL для POST-запроса и URL для GET-запроса с параметром markView: true
 url_post = "https://employer-api.robota.ua/cvdb/resumes"
@@ -97,21 +98,29 @@ def get_and_process_resumes():
 
     # Получение дополнительных данных о каждом кандидате
     extracted_data = []
-    print(all_responses)
     for resume in all_responses:
         resume_id = resume['resumeId']
         details = fetch_resume(resume_id)
         if details:
+            # Очистка описания навыков от HTML тегов
+            cleaned_skills = []
+            for skill in details.get('skills', []):
+                description = skill.get('description', '')
+                clean_description = re.sub(r"<.*?>", "", description)  # Удаление всех HTML тегов
+                cleaned_skills.append({"description": clean_description})
+
+            # Добавление данных о кандидате в извлеченные данные
             data = {
                 'resume_id': resume_id,
                 'name': details.get('name', 'Not specified'),
                 'age': details.get('age', 'Not specified'),
                 'speciality': details.get('speciality', 'Not specified'),
                 'salaryFull': details.get('salaryFull', 'Not specified'),
-                'skills': details.get('skills', []),
-                'experience': details.get('experience', [])
+                'skills': cleaned_skills,
+                'experience': details.get('experiences', [])
             }
             extracted_data.append(data)
+            # print(all_responses)
 
     # Сохранение извлеченных данных в файл
     with open('extracted_data.json', 'w', encoding='utf-8') as jsonfile:
