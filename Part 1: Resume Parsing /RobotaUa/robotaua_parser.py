@@ -3,6 +3,7 @@ import asyncio
 import time
 import json
 import re
+from datetime import datetime
 
 # URL для POST-запроса и URL для GET-запроса с параметром markView: true
 url_post = "https://employer-api.robota.ua/cvdb/resumes"
@@ -48,6 +49,7 @@ headers = {
     # Добавьте здесь любые другие заголовки, если это необходимо, например, токен авторизации
 }
 
+
 # Функция для обработки POST-запроса с возможностью повтора
 async def send_request(session, url, payload, headers, retries=3):
     for attempt in range(retries):
@@ -59,6 +61,7 @@ async def send_request(session, url, payload, headers, retries=3):
                 await asyncio.sleep(2)
     return None
 
+
 # Функция для отправки GET-запроса с использованием aiohttp
 async def fetch_resume(session, resume_id):
     url = url_get_template.format(resume_id=resume_id)
@@ -68,6 +71,24 @@ async def fetch_resume(session, resume_id):
         else:
             print(f"Ошибка при получении данных кандидата {resume_id}: {response.status}")
             return None
+
+
+# Функция для расчета общего времени работы
+def calculate_total_experience(experiences):
+    total_months = 0
+    for exp in experiences:
+        start = datetime.strptime(exp['startWork'].split('.')[0], "%Y-%m-%dT%H:%M:%S")
+        end = exp['endWork']
+        if end:
+            end = datetime.strptime(end.split('.')[0], "%Y-%m-%dT%H:%M:%S")
+        else:
+            end = datetime.now()
+        total_months += (end.year - start.year) * 12 + end.month - start.month
+
+    years = total_months // 12
+    months = total_months % 12
+    return f"{years} лет и {months} месяцев"
+
 
 # Функция для получения всех резюме и отправки GET-запросов
 async def get_and_process_resumes():
@@ -105,12 +126,15 @@ async def get_and_process_resumes():
 
         for details in results:
             if details:
-                # Очистка описания навыков от HTML тегов
+                # Очистка описания навыков от HTML тегов и получение текста
                 cleaned_skills = []
                 for skill in details.get('skills', []):
                     description = skill.get('description', '')
                     clean_description = re.sub(r"<.*?>", "", description)  # Удаление всех HTML тегов
-                    cleaned_skills.append({"description": clean_description})
+                    cleaned_skills.append(clean_description)
+
+                # Расчет общего времени работы
+                total_experience = calculate_total_experience(details.get('experiences', []))
 
                 # Добавление данных о кандидате в извлеченные данные
                 data = {
@@ -120,7 +144,7 @@ async def get_and_process_resumes():
                     'speciality': details.get('speciality', 'Not specified'),
                     'salaryFull': details.get('salaryFull', 'Not specified'),
                     'skills': cleaned_skills,
-                    'experience': details.get('experiences', [])
+                    'experience': total_experience
                 }
                 extracted_data.append(data)
 
@@ -129,6 +153,7 @@ async def get_and_process_resumes():
             json.dump(extracted_data, jsonfile, ensure_ascii=False, indent=4)
 
         print("Извлеченные данные сохранены в файл extracted_data.json.")
+
 
 # Запуск основной функции
 if __name__ == "__main__":
