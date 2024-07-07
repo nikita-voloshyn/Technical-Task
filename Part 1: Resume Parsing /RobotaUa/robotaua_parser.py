@@ -1,5 +1,6 @@
 import requests
 import time
+import csv
 
 # URL для POST-запроса
 url = "https://employer-api.robota.ua/cvdb/resumes"
@@ -34,7 +35,8 @@ payload = {
     "resumeFillingTypeIds": [],
     "districtIds": [],
     "onlyStudents": False,
-    "searchContext": "Filters"
+    "searchContext": "Filters",
+    "requestedCount": 20  # Добавляем requestedCount
 }
 
 # Заголовки для запроса (если необходимо)
@@ -43,34 +45,62 @@ headers = {
     # Добавьте здесь любые другие заголовки, если это необходимо, например, токен авторизации
 }
 
-# Список для хранения всех текстов ответов
-all_responses = []
 
-# Цикл для пагинации
-while True:
-    # Отправка POST-запроса
-    response = requests.post(url, json=payload, headers=headers)
+# Функция для обработки POST-запроса с возможностью повтора
+def send_request(url, payload, headers, retries=3):
+    for attempt in range(retries):
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Попытка {attempt + 1} не удалась. Статус код: {response.status_code}")
+            time.sleep(2)
+    return None
 
-    # Обработка ответа
-    if response.status_code == 200:
-        text_data = response.text
-        all_responses.append(text_data)
 
-        print(f"Страница {payload['page']} обработана.")
+# Открытие файла для записи данных в CSV формате
+with open('resumes.csv', 'w', newline='', encoding='utf-8') as csvfile:
+    fieldnames = [
+        'resumeId', 'userId', 'speciality', 'fullName', 'salary',
+        'age', 'cityName', 'experience', 'photo', 'url'
+    ]
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
 
-        # Увеличение номера страницы для следующего запроса
-        payload['page'] += 1
+    # Цикл для пагинации
+    while True:
+        json_data = send_request(url, payload, headers)
 
-        # Задержка между запросами
-        time.sleep(2)
-    else:
-        print(f"Ошибка при выполнении запроса: {response.status_code}")
-        print(response.text)
-        break
+        if json_data:
+            print(f"Страница {payload['page']} обработана.")
 
-# Сохранение всех данных в текстовый файл
-with open('responses.txt', 'w', encoding='utf-8') as f:
-    for response in all_responses:
-        f.write(response + '\n')
+            # Запись данных о людях в CSV файл
+            for document in json_data.get('documents', []):
+                writer.writerow({
+                    'resumeId': document.get('resumeId'),
+                    'userId': document.get('userId'),
+                    'speciality': document.get('speciality'),
+                    'fullName': document.get('fullName'),
+                    'salary': document.get('salary', ''),
+                    'age': document.get('age', ''),
+                    'cityName': document.get('cityName', ''),
+                    'experience': document.get('experience', []),  # Пример, можно изменить под свои нужды
+                    'photo': document.get('photo', ''),
+                    'url': document.get('url', '')
+                })
 
-print("Данные сохранены в файл responses.txt.")
+            # Проверка количества документов
+            if len(json_data.get('documents', [])) < payload['requestedCount']:
+                print("Достигнут конец данных.")
+                break
+
+            # Увеличение номера страницы для следующего запроса
+            payload['page'] += 1
+
+            # Задержка между запросами
+            time.sleep(2)
+        else:
+            print(f"Ошибка при выполнении запроса на странице {payload['page']}")
+            break
+
+print("Данные сохранены в файл resumes.csv.")
