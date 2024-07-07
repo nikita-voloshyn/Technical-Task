@@ -87,7 +87,7 @@ def calculate_total_experience(experiences):
 
     years = total_months // 12
     months = total_months % 12
-    return f"{years} лет и {months} месяцев"
+    return f"{years} років і {months} місяців"
 
 
 # Функция для получения всех резюме и отправки GET-запросов
