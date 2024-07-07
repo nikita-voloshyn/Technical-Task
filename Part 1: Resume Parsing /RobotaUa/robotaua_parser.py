@@ -2,8 +2,9 @@ import requests
 import time
 import json
 
-# URL для POST-запроса
-url = "https://employer-api.robota.ua/cvdb/resumes"
+# URL для POST-запроса и URL для GET-запроса с параметром markView: true
+url_post = "https://employer-api.robota.ua/cvdb/resumes"
+url_get_template = "https://employer-api.robota.ua/resume/{resume_id}?markView=true"
 
 # Параметры для POST-запроса
 payload = {
@@ -45,7 +46,6 @@ headers = {
     # Добавьте здесь любые другие заголовки, если это необходимо, например, токен авторизации
 }
 
-
 # Функция для обработки POST-запроса с возможностью повтора
 def send_request(url, payload, headers, retries=3):
     for attempt in range(retries):
@@ -57,41 +57,68 @@ def send_request(url, payload, headers, retries=3):
             time.sleep(2)
     return None
 
+# Функция для отправки GET-запроса с использованием aiohttp
+def fetch_resume(resume_id):
+    url = url_get_template.format(resume_id=resume_id)
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Ошибка при получении данных кандидата {resume_id}: {response.status_code}")
+        return None
 
-# Список для хранения всех текстов ответов
-all_responses = []
+# Функция для получения всех резюме и отправки GET-запросов
+def get_and_process_resumes():
+    all_responses = []
 
-# Цикл для пагинации
-while True:
-    json_data = send_request(url, payload, headers)
+    # Цикл для пагинации
+    while True:
+        json_data = send_request(url_post, payload, headers)
 
-    if json_data:
-        print(f"Страница {payload['page']} обработана.")
+        if json_data:
+            print(f"Страница {payload['page']} обработана.")
 
-        # Добавляем данные о людях в список
-        all_responses.extend(json_data.get('documents', []))
+            # Добавляем данные о людях в список
+            all_responses.extend(json_data.get('documents', []))
 
-        # Проверка количества документов
-        if len(json_data.get('documents', [])) < payload['requestedCount']:
-            print("Достигнут конец данных.")
+            # Проверка количества документов
+            if len(json_data.get('documents', [])) < payload['requestedCount']:
+                print("Достигнут конец данных.")
+                break
+
+            # Увеличение номера страницы для следующего запроса
+            payload['page'] += 1
+
+            # Задержка между запросами
+            time.sleep(2)
+        else:
+            print(f"Ошибка при выполнении запроса на странице {payload['page']}")
             break
 
-        # Увеличение номера страницы для следующего запроса
-        payload['page'] += 1
+    # Получение дополнительных данных о каждом кандидате
+    extracted_data = []
+    print(all_responses)
+    for resume in all_responses:
+        resume_id = resume['resumeId']
+        details = fetch_resume(resume_id)
+        if details:
+            data = {
+                'resume_id': resume_id,
+                'name': details.get('name', 'Not specified'),
+                'age': details.get('age', 'Not specified'),
+                'speciality': details.get('speciality', 'Not specified'),
+                'salaryFull': details.get('salaryFull', 'Not specified'),
+                'skills': details.get('skills', []),
+                'experience': details.get('experience', [])
+            }
+            extracted_data.append(data)
 
-        # Задержка между запросами
-        time.sleep(2)
-    else:
-        print(f"Ошибка при выполнении запроса на странице {payload['page']}")
-        break
+    # Сохранение извлеченных данных в файл
+    with open('extracted_data.json', 'w', encoding='utf-8') as jsonfile:
+        json.dump(extracted_data, jsonfile, ensure_ascii=False, indent=4)
 
-# Сохранение всех данных в JSON-файл
-with open('resumes.json', 'w', encoding='utf-8') as jsonfile:
-    json.dump(all_responses, jsonfile, ensure_ascii=False, indent=4)
+    print("Извлеченные данные сохранены в файл extracted_data.json.")
 
-print("Данные сохранены в файл resumes.json.")
-
-
-# https://employer-api.robota.ua/resume/23642926?markView=true
-# GET
-# markView: true
+# Запуск основной функции
+if __name__ == "__main__":
+    get_and_process_resumes()
